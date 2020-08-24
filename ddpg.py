@@ -9,7 +9,7 @@ from pid_env import PidEnv
 
 class DDPGagent:
     def __init__(self, env, numStates, numNNSize, numActions, actorLearningRate=1e-4, criticLearningRate=1e-3,
-                 gamma=0.99, tau=0.01, maxMemSize=50000):
+                 gamma=0.99, tau=0.99, maxMemSize=50000):
         # Params
         self.numStates = numStates
         self.numActions = numActions
@@ -61,6 +61,10 @@ class DDPGagent:
 
         # Actor loss
 
+        self.criticOptimizer.zero_grad()
+        criticLoss.backward()
+        self.criticOptimizer.step()
+
         policyLoss = -self.critic.forward(states, self.actor.forward(states)).mean()
 
         # update networks
@@ -71,9 +75,6 @@ class DDPGagent:
             self.actorOptimizer.step()
             self.agentUpdateLimCount = 0
 
-        self.criticOptimizer.zero_grad()
-        criticLoss.backward()
-        self.criticOptimizer.step()
 
         # update target networks
 
@@ -93,7 +94,7 @@ class DDPGagent:
         actor_theta_optimizer= optim.Adam(self.actor.parameters(), lr=actorLearningRate)
         critic_theta_optimizer = optim.Adam(self.critic.parameters(), lr=criticLearningRate)
         
-        for outer in range(10):
+        for outer in range(30):
             print(outer)
             outer_critic_loss = 0
             outer_actor_loss = 0

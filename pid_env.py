@@ -9,6 +9,7 @@ from abc import ABC
 
 import gym
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 class PidEnv(gym.Env, ABC):
@@ -29,6 +30,7 @@ class PidEnv(gym.Env, ABC):
         self.accel = np.array([0.0, 0.0])
         self.done = 0
         self.stepsTaken = 0
+        self.history = []
 
     def step(self, action):
         self.stepsTaken += 1
@@ -51,9 +53,10 @@ class PidEnv(gym.Env, ABC):
         else:
             reward = -(self.err[1] * self.err[1])
 
-        if abs(self.err[1]) == 0:
+        if abs(self.err[1]) < 0.001 and abs(self.history[len(self.history) - 2]) < 0.001:
             reward += self.targetVal**2
             self.done = 1
+        self.history.append(self.err[1])
 
         state = np.array([self.P, self.I, self.D, self.tStep])
 
@@ -84,6 +87,12 @@ class PidEnv(gym.Env, ABC):
                     self.accel[1] = (direction * (self.P + self.I + self.D)) + self.accel[0]
                 self.v = self.v + (direction * 0.5 * (self.accel[1] + self.accel[0]) * self.tStep)
                 self.x = self.x + (direction * self.v * self.tStep) + (0.5 * self.accel[1] * self.tStep * self.tStep)
+                if self.x < -1e-10:
+                    self.x = -1e-10
+                elif self.x > 1e10:
+                    self.x = 1e10
+                elif np.isnan(self.x):
+                    self.x = 1e10
                 self.err[1] = self.targetVal - self.x
 
                 #       self.xHist[self.xHistCount] = self.x
@@ -97,6 +106,7 @@ class PidEnv(gym.Env, ABC):
                 done = 1
 
     def reset(self):
+        self.history = []
         self.err = np.array([self.targetVal, self.targetVal])
         self.kp = 0.5
         self.ki = 0.5
@@ -116,3 +126,8 @@ class PidEnv(gym.Env, ABC):
         state = np.array([self.P, self.I, self.D, self.tStep])
 
         return state
+    def render(self):
+        plt.plot(self.history)
+        plt.xlabel('step')
+        plt.ylabel('Error')
+        plt.show()
